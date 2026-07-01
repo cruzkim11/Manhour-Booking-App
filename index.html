@@ -59,16 +59,16 @@
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-2 w-full sm:w-auto no-print">
-                    <button onclick="clearHistory()" class="px-3 py-2 border border-slate-600 hover:bg-slate-700 text-slate-300 rounded-xl sm:rounded-lg text-xs transition-all">
+                    <button onclick="clearHistory()" class="px-3 py-2 border border-slate-600 hover:bg-slate-700 text-slate-300 rounded-xl sm:rounded-lg text-xs transition-all cursor-pointer">
                         Clear Logs
                     </button>
-                    <button onclick="exportToExcel()" class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl sm:rounded-lg font-medium text-xs transition-all shadow-md flex justify-center items-center gap-1.5">
+                    <button onclick="exportToExcel()" class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl sm:rounded-lg font-medium text-xs transition-all shadow-md flex justify-center items-center gap-1.5 cursor-pointer">
                         Export to Excel
                     </button>
-                    <button onclick="window.print()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl sm:rounded-lg font-medium text-xs transition-all shadow-md flex justify-center items-center gap-1.5">
+                    <button onclick="window.print()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl sm:rounded-lg font-medium text-xs transition-all shadow-md flex justify-center items-center gap-1.5 cursor-pointer">
                         Print Report
                     </button>
-                    <button onclick="addRow()" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 sm:py-2 rounded-xl sm:rounded-lg font-medium text-sm transition-all shadow-md flex justify-center items-center gap-1.5">
+                    <button onclick="addRow()" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 sm:py-2 rounded-xl sm:rounded-lg font-medium text-sm transition-all shadow-md flex justify-center items-center gap-1.5 cursor-pointer">
                         Add Personnel
                     </button>
                 </div>
@@ -123,7 +123,6 @@
         let personnelData = [];
         let historyLogs = [];
         let runningRows = {};
-        let audioCtx = null;
         let globalAlarmInterval = null;
 
         function updateHeaderClock() {
@@ -144,19 +143,17 @@
             Object.keys(runningRows).forEach(index => { clearInterval(runningRows[index]); delete runningRows[index]; });
         }
 
-        // Fetch initialization and open persistent live realtime sockets
         async function initializeCloudSync() {
             await fetchInitialCloudData();
             renderApp();
             initResizableColumns();
 
-            // Realtime listener for modifications made by other users
             supabase.channel('cloud-db-sync')
-                .on('postgres_changes', { event: '*', filter: undefined, schema: 'public', table: 'personnel' }, async () => {
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'personnel' }, async () => {
                     await fetchInitialCloudData();
                     renderApp();
                 })
-                .on('postgres_changes', { event: 'INSERT', filter: undefined, schema: 'public', table: 'logs' }, async (payload) => {
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'logs' }, async (payload) => {
                     historyLogs.unshift(`[Cloud Log] ${payload.new.message}`);
                     renderHistoryLogs();
                 })
@@ -186,7 +183,7 @@
         }
 
         async function clearHistory() {
-            await supabase.from('logs').delete().neq('id', 0); // Clear database logs safely
+            await supabase.from('logs').delete().neq('id', 0);
             historyLogs = [];
             renderHistoryLogs();
         }
@@ -218,7 +215,6 @@
             const banner = document.getElementById('system-alarm-banner');
             if (overbooked.length > 0) {
                 if (banner) { banner.style.display = 'block'; banner.innerHTML = `🚨 OVERBOOKED DETECTED: (${overbooked.join(', ')})`; }
-                if (!globalAlarmInterval) globalAlarmInterval = setInterval(() => { /* Play sound logic safely */ }, 1500);
             } else {
                 if (banner) banner.style.display = 'none';
                 if (globalAlarmInterval) { clearInterval(globalAlarmInterval); globalAlarmInterval = null; }
@@ -233,7 +229,8 @@
         }
 
         function renderDesktop() {
-            const tbody = document.getElementById('desktop-tracker-body'); tbody.innerHTML = '';
+            const tbody = document.getElementById('desktop-tracker-body'); 
+            tbody.innerHTML = '';
             personnelData.forEach((row, index) => {
                 const isOverbooked = checkOverbooked(row);
                 const tr = document.createElement('tr');
@@ -250,12 +247,12 @@
                     <td class="p-2"><input type="text" value="${row.startTime || ''}" onchange="updateFieldInCloud(${row.id}, 'startTime', this.value)" class="w-full bg-transparent text-slate-300 font-mono text-xs border-transparent focus:border-slate-500 rounded"></td>
                     <td class="p-2"><input type="text" value="${row.endTime || ''}" onchange="updateFieldInCloud(${row.id}, 'endTime', this.value)" class="w-full bg-transparent text-slate-300 font-mono text-xs border-transparent focus:border-slate-500 rounded"></td>
                     <td class="p-2"><input type="number" step="any" value="${row.validated || 0}" onchange="recalcRowCloud(${row.id}, ${index}, 'validated', this.value)" class="w-full text-center bg-transparent border-transparent text-slate-100 font-semibold rounded"></td>
-                    <td class="p-2"><input type="text" value="${formatMHRToHMS(row.actual || 0)}" onchange="recalcRowHMSCloud(${row.id}, ${index}, 'actual', this.value)" class="w-full text-center bg-transparent text-blue-400 font-bold font-mono rounded"></td>
+                    <td class="p-2"><input type="text" value="${formatMHRToHMS(row.actual || 0)}" id="actual-${index}" onchange="recalcRowHMSCloud(${row.id}, ${index}, 'actual', this.value)" class="w-full text-center bg-transparent text-blue-400 font-bold font-mono rounded"></td>
                     <td class="p-2"><input type="text" value="${formatMHRToHMS(row.actual || 0)}" readonly class="w-full text-center bg-transparent text-emerald-400 font-mono pointer-events-none select-none"></td>
-                    <td class="p-2"><input type="text" value="${formatMHRToHMS(row.remaining || 0)}" onchange="recalcRowHMSCloud(${row.id}, ${index}, 'remaining', this.value)" class="w-full text-center bg-transparent text-amber-400 font-bold font-mono rounded"></td>
-                    <td class="p-3 text-center no-print">
-                        ${runningRows[index] ? `<button onclick="stopAndSave(${index}, ${row.id})" class="bg-amber-600 text-white text-xs px-2 py-1 rounded">Stop</button>` : ''}
-                        <button onclick="deleteRow(${row.id})" class="text-slate-500 hover:text-rose-400 ml-2">Del</button>
+                    <td class="p-2"><input type="text" value="${formatMHRToHMS(row.remaining || 0)}" id="remaining-${index}" onchange="recalcRowHMSCloud(${row.id}, ${index}, 'remaining', this.value)" class="w-full text-center bg-transparent text-amber-400 font-bold font-mono rounded"></td>
+                    <td class="p-3 text-center no-print flex items-center justify-center gap-1">
+                        ${runningRows[index] ? `<button onclick="stopAndSave(${index}, ${row.id})" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-2 py-1 rounded cursor-pointer">Stop</button>` : ''}
+                        <button onclick="deleteRow(${row.id})" class="text-slate-500 hover:text-rose-400 px-2 py-1 cursor-pointer">Del</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -263,7 +260,8 @@
         }
 
         function renderMobileCards() {
-            const container = document.getElementById('mobile-tracker-cards'); container.innerHTML = '';
+            const container = document.getElementById('mobile-tracker-cards'); 
+            container.innerHTML = '';
         }
 
         async function recalcRowCloud(id, index, field, value) {
@@ -273,6 +271,8 @@
             if (field === 'validated') val = num;
             let rem = val - act;
             await supabase.from('personnel').update({ validated: val, remaining: rem }).eq('id', id);
+            await fetchInitialCloudData();
+            renderApp();
         }
 
         async function recalcRowHMSCloud(id, index, field, value) {
@@ -283,6 +283,8 @@
             let rem = val - act;
             if (field === 'remaining') { rem = mhr; act = val - rem; }
             await supabase.from('personnel').update({ actual: act, remaining: rem }).eq('id', id);
+            await fetchInitialCloudData();
+            renderApp();
         }
 
         function toggleClock(index) {
@@ -305,6 +307,7 @@
                     if(actualInput) actualInput.value = formatMHRToHMS(newAct);
                     if(remainingInput) remainingInput.value = formatMHRToHMS(newRem);
                 }, 1000);
+                renderApp();
             }
         }
 
@@ -318,20 +321,25 @@
 
             await supabase.from('personnel').update({ actual: finalAct, remaining: finalRem, endTime: endTime }).eq('id', id);
             await writeCloudLog(`Stopped clock monitoring tracking window session for entity profile: ${row.name}`);
+            await fetchInitialCloudData();
+            renderApp();
         }
 
         async function addRow() {
             await supabase.from('personnel').insert([{ name: "NEW ROW", validated: 0, actual: 0, remaining: 0, alarmTriggered: false }]);
+            await fetchInitialCloudData();
+            renderApp();
         }
 
         async function deleteRow(id) {
             await supabase.from('personnel').delete().eq('id', id);
+            await fetchInitialCloudData();
+            renderApp();
         }
 
         function initResizableColumns() { /* Native drag hooks framework initialization */ }
         function exportToExcel() { /* Native formatting parser mapping CSV buffers */ }
 
-        // Start application up immediately
         initializeApplication();
     </script>
 </body>
