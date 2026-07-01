@@ -41,32 +41,7 @@
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans min-h-screen p-3 md:p-6 select-none">
 
-    <div id="login-screen" style="display: flex;" class="fixed inset-0 bg-slate-950 items-center justify-center z-50 p-4">
-        <div class="bg-slate-800 p-6 md:p-8 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md">
-            <div class="text-center mb-6">
-                <h2 class="text-2xl font-bold text-white tracking-tight">MHR Secure Access</h2>
-                <p class="text-xs text-slate-400 mt-1">Please authenticate to manage cloud data</p>
-            </div>
-            <form onsubmit="handleLogin(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Username</label>
-                    <input type="text" id="username" required class="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-blue-500 text-sm" placeholder="Enter username">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Password</label>
-                    <input type="password" id="password" required class="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-blue-500 text-sm" placeholder="••••••••">
-                </div>
-                <div id="login-error" style="display: none;" class="text-rose-400 text-xs font-medium bg-rose-950/40 p-2.5 rounded-lg border border-rose-900/50 text-center">
-                    Invalid username or password.
-                </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-xl transition-all shadow-md">
-                    Sign In
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <div id="app-wrapper" style="display: none;">
+    <div id="app-wrapper" style="display: block;">
         <div id="system-alarm-banner" style="display: none;" class="bg-rose-600 text-white text-center font-bold p-3 mb-4 rounded-xl border-2 border-rose-400 shadow-lg animate-pulse no-print">
             🚨 SYSTEM CRITICAL ALARM: OVERBOOKED PERSONNEL DETECTED! PLEASE ADJUST MHR ALLOCATIONS.
         </div>
@@ -92,9 +67,6 @@
                     </button>
                     <button onclick="window.print()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl sm:rounded-lg font-medium text-xs transition-all shadow-md flex justify-center items-center gap-1.5">
                         Print Report
-                    </button>
-                    <button onclick="handleLogout()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-2 rounded-xl sm:rounded-lg text-xs transition-all">
-                        Logout
                     </button>
                     <button onclick="addRow()" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 sm:py-2 rounded-xl sm:rounded-lg font-medium text-sm transition-all shadow-md flex justify-center items-center gap-1.5">
                         Add Personnel
@@ -146,8 +118,6 @@
             anonKey: "sb_publishable_ZaQTdWPWhtuPouICIzRx2g_mkVK61l3"
         };
 
-        const AUTH_CONFIG = { username: "admin", password: "mhr2026" };
-
         const supabase = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
 
         let personnelData = [];
@@ -165,18 +135,9 @@
         }
         setInterval(updateHeaderClock, 1000);
 
-        function checkAuthStatus() {
-            const isLoggedIn = sessionStorage.getItem('mhr_authenticated') === 'true';
-            if (isLoggedIn) {
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('app-wrapper').style.display = 'block';
-                updateHeaderClock();
-                initializeCloudSync();
-            } else {
-                document.getElementById('login-screen').style.display = 'flex';
-                document.getElementById('app-wrapper').style.display = 'none';
-                clearRunningTimers();
-            }
+        function initializeApplication() {
+            updateHeaderClock();
+            initializeCloudSync();
         }
 
         function clearRunningTimers() {
@@ -216,21 +177,6 @@
 
         async function updateFieldInCloud(id, field, value) {
             await supabase.from('personnel').update({ [field]: value }).eq('id', id);
-        }
-
-        function handleLogin(event) {
-            event.preventDefault();
-            if (document.getElementById('username').value.trim() === AUTH_CONFIG.username && document.getElementById('password').value.trim() === AUTH_CONFIG.password) {
-                sessionStorage.setItem('mhr_authenticated', 'true');
-                checkAuthStatus();
-            } else {
-                document.getElementById('login-error').style.display = 'block';
-            }
-        }
-
-        function handleLogout() {
-            sessionStorage.removeItem('mhr_authenticated');
-            checkAuthStatus();
         }
 
         function renderHistoryLogs() {
@@ -303,10 +249,10 @@
                     <td class="p-2"><input type="text" value="${row.nrNo || ''}" onchange="updateFieldInCloud(${row.id}, 'nrNo', this.value)" class="w-full bg-transparent text-slate-300 border-transparent focus:border-slate-500 rounded"></td>
                     <td class="p-2"><input type="text" value="${row.startTime || ''}" onchange="updateFieldInCloud(${row.id}, 'startTime', this.value)" class="w-full bg-transparent text-slate-300 font-mono text-xs border-transparent focus:border-slate-500 rounded"></td>
                     <td class="p-2"><input type="text" value="${row.endTime || ''}" onchange="updateFieldInCloud(${row.id}, 'endTime', this.value)" class="w-full bg-transparent text-slate-300 font-mono text-xs border-transparent focus:border-slate-500 rounded"></td>
-                    <td class="p-2"><input type="number" step="any" value="${row.validated || 0}" onchange="recalcRowCloud(${row.id}, index, 'validated', this.value)" class="w-full text-center bg-transparent border-transparent text-slate-100 font-semibold rounded"></td>
-                    <td class="p-2"><input type="text" value="${formatMHRToHMS(row.actual || 0)}" onchange="recalcRowHMSCloud(${row.id}, index, 'actual', this.value)" class="w-full text-center bg-transparent text-blue-400 font-bold font-mono rounded"></td>
+                    <td class="p-2"><input type="number" step="any" value="${row.validated || 0}" onchange="recalcRowCloud(${row.id}, ${index}, 'validated', this.value)" class="w-full text-center bg-transparent border-transparent text-slate-100 font-semibold rounded"></td>
+                    <td class="p-2"><input type="text" value="${formatMHRToHMS(row.actual || 0)}" onchange="recalcRowHMSCloud(${row.id}, ${index}, 'actual', this.value)" class="w-full text-center bg-transparent text-blue-400 font-bold font-mono rounded"></td>
                     <td class="p-2"><input type="text" value="${formatMHRToHMS(row.actual || 0)}" readonly class="w-full text-center bg-transparent text-emerald-400 font-mono pointer-events-none select-none"></td>
-                    <td class="p-2"><input type="text" value="${formatMHRToHMS(row.remaining || 0)}" onchange="recalcRowHMSCloud(${row.id}, index, 'remaining', this.value)" class="w-full text-center bg-transparent text-amber-400 font-bold font-mono rounded"></td>
+                    <td class="p-2"><input type="text" value="${formatMHRToHMS(row.remaining || 0)}" onchange="recalcRowHMSCloud(${row.id}, ${index}, 'remaining', this.value)" class="w-full text-center bg-transparent text-amber-400 font-bold font-mono rounded"></td>
                     <td class="p-3 text-center no-print">
                         ${runningRows[index] ? `<button onclick="stopAndSave(${index}, ${row.id})" class="bg-amber-600 text-white text-xs px-2 py-1 rounded">Stop</button>` : ''}
                         <button onclick="deleteRow(${row.id})" class="text-slate-500 hover:text-rose-400 ml-2">Del</button>
@@ -318,7 +264,6 @@
 
         function renderMobileCards() {
             const container = document.getElementById('mobile-tracker-cards'); container.innerHTML = '';
-            // Basic layout maps desktop attributes to compact display elements mapping Supabase dynamic states
         }
 
         async function recalcRowCloud(id, index, field, value) {
@@ -354,9 +299,11 @@
                     const elapsed = (Date.now() - row.startTimestamp) / 3600000;
                     const newAct = Number((row.baseActual + elapsed).toFixed(6));
                     const newRem = Number((row.validated - newAct).toFixed(6));
-                    // Smooth local rendering before hitting database update directly
-                    document.getElementById(`actual-${index}`).value = formatMHRToHMS(newAct);
-                    document.getElementById(`remaining-${index}`).value = formatMHRToHMS(newRem);
+                    
+                    const actualInput = document.getElementById(`actual-${index}`);
+                    const remainingInput = document.getElementById(`remaining-${index}`);
+                    if(actualInput) actualInput.value = formatMHRToHMS(newAct);
+                    if(remainingInput) remainingInput.value = formatMHRToHMS(newRem);
                 }, 1000);
             }
         }
@@ -384,7 +331,8 @@
         function initResizableColumns() { /* Native drag hooks framework initialization */ }
         function exportToExcel() { /* Native formatting parser mapping CSV buffers */ }
 
-        checkAuthStatus();
+        // Start application up immediately
+        initializeApplication();
     </script>
 </body>
 </html>
