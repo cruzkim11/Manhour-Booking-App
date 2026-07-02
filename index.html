@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MHR Booking App</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         input[type="number"]::-webkit-inner-spin-button,
         input[type="number"]::-webkit-outer-spin-button {
@@ -75,7 +76,6 @@
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans min-h-screen p-3 md:p-6 select-none">
 
-    <!-- App Wrapper now visible by default -->
     <div id="app-wrapper">
         <div id="system-alarm-banner" style="display: none;" class="bg-rose-600 text-white text-center font-bold p-3 mb-4 rounded-xl border-2 border-rose-400 shadow-lg animate-pulse no-print">
             🚨 SYSTEM CRITICAL ALARM: OVERBOOKED PERSONNEL DETECTED! PLEASE ADJUST MHR ALLOCATIONS.
@@ -153,6 +153,15 @@
     </div>
 
     <script>
+        // Supabase Infrastructure Configuration 
+        const SUPABASE_CONFIG = {
+            url: "https://opvudxsqgkkepacxfvpo.supabase.co",
+            anonKey: "sb_publishable_ZaQTdWPWhtuPouICIzRx2g_mkVK61l3"
+        };
+
+        // Initialize Global Supabase Client
+        const supabaseClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+
         // Live Header Clock Logic
         function updateHeaderClock() {
             const displayEl = document.getElementById('current-datetime-display');
